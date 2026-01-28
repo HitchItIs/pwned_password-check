@@ -20,3 +20,15 @@ def request_api_data(request_prefix):
     if res.status_code != 200:
         raise RuntimeError(f"Error fetching data from API: {res.status_code}")
     return res.text
+
+if __name__ == "__main__":
+    test_password = "EnterPasswordHere"
+    full_hash = get_hash(test_password)
+    prefix, suffix = slicer(full_hash)
+
+    print(f"Prefix for API: {prefix}")
+    print(f"Suffix for local check: {suffix}")
+
+    api_response = request_api_data(prefix)
+    print("\n--- API Response Received ---")
+    print(api_response)

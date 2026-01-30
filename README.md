@@ -17,6 +17,13 @@ A Python-based security tool that checks if a password has been compromised in k
 4.  The API returns a list of all leaked suffixes starting with that prefix.
 5.  The tool compares the local suffix with the API results to determine the exact leak count.
 
+ ## Future Steps
+ 
+[ ] Secure Input & CLI: Implement command-line arguments (using argparse) to allow password checks without modifying the source code, ensuring better security and usability.
+
+[ ] External Interface: Develop a Graphical User Interface (GUI) or a lightweight Web Frontend to make the tool accessible for non-technical users.
+
+[ ] Password Strength Analyzer: Add a local evaluation module to check password entropy and complexity (length, character variety) before performing the API lookup.
 
 
 ## Security & Design Choices

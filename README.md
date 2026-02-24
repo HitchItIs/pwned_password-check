@@ -19,8 +19,8 @@ This project is currently under active development.
 - [x] Basic console output for leak count.
 
 **To-do / Known Issues:**
-- [ ] Security: Replace hardcoded password input with secure 'getpass' or environment variables.
-- [ ] **Error Handling:** Currently lacks robust handling for API timeouts or connection errors.
+- [x] Security: Replace hardcoded password input with secure 'getpass' or environment variables.
+- [x] **Error Handling:** Currently lacks robust handling for API timeouts or connection errors.
 - [ ] **File Input:** Planning to add support for checking multiple passwords from a `.txt` file.
 - [ ] **UI/UX:** Improving the CLI output with `colorama` for better readability.
 - [ ] **Code Refactoring:** Moving from a monolithic script to a more modular class-based structure.

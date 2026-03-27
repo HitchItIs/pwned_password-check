@@ -42,17 +42,22 @@ def get_leak_count(hashes_data,target_suffix):
 
 #Main
 
-if __name__ == "__main__":   
-    test_password = getpass.getpass ()
-    full_hash = get_hash(test_password)
-    prefix, suffix = slicer(full_hash)
-    api_response = request_api_data(prefix)
-    if not api_response:
+if __name__ == "__main__":
+    while True:   
+     test_password = getpass.getpass("Password to check (or type 'exit'): ")
+     if test_password.lower() == "exit":
+         break
+     if not test_password:
+         continue
+     full_hash = get_hash(test_password)
+     prefix, suffix = slicer(full_hash)
+     api_response = request_api_data(prefix)
+     if not api_response:
         sys.exit("Critical Error: No Data was fetched from API")
-    count = get_leak_count(api_response, suffix)
-    if count > 0:
-        print (f" Danger your Password has been PWNED {count}times")
+     count = get_leak_count(api_response, suffix)
+     if count > 0:
+        print (f" Danger your Password has been PWNED {count} times")
         print ("Please take action ASAP!")
-    else: 
+     else: 
         print("Your password is secure.....for now!")
     

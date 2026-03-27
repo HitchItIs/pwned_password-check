@@ -23,7 +23,7 @@ This project is currently under active development.
 - [x] **Error Handling:** Currently lacks robust handling for API timeouts or connection errors.
 - [ ] **File Input:** Planning to add support for checking multiple passwords from a `.txt` file.
 - [X] **UI/UX:** Improving the CLI output for better readability.
-- [ ] **Code Refactoring:** Moving from a monolithic script to a more modular class-based structure.
+- [x] **Code Refactoring:** Moving from a monolithic script to a more modular class-based structure.
 
 ## Learning Goals
 - Working with REST APIs (Requests library).

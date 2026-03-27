@@ -53,11 +53,10 @@ if __name__ == "__main__":
      prefix, suffix = slicer(full_hash)
      api_response = request_api_data(prefix)
      if not api_response:
-        sys.exit("Critical Error: No Data was fetched from API")
+        sys.exit("Connection Error: Could not reach Pwned Passwords API.")
      count = get_leak_count(api_response, suffix)
      if count > 0:
-        print (f" Danger your Password has been PWNED {count} times")
+        print (f"Danger your Password has been PWNED {count} times")
         print ("Please take action ASAP!")
      else: 
         print("Your password is secure.....for now!")
-    

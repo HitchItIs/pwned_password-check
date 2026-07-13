@@ -16,6 +16,7 @@ This project strictly prioritizes data security and implements specialized mecha
 2. Zero-String Memory Hitting (In Progress):
    * To prevent passwords from persisting in the RAM via immutable Python strings, this tool uses a byte-centric architecture.
    * Inputs are handled directly as mutable bytearray structures.
+   * A `try...finally` cleanup path ensures the password buffer is zeroed deterministically even if hashing or API calls fail.
    * Once the hash is processed, the memory buffer is explicitly overwritten with zeroes (0x00) to mitigate memory-dump exploits.
    * CLI outputs of intermediate cryptographic pieces (like hash suffixes) are completely suppressed to avoid implicit string allocation.
 

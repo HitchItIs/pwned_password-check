@@ -16,14 +16,14 @@ def main():
         prefix, suffix = slicer(full_hash)
         api_response = request_api_data(prefix)
         if not api_response:
-            sys.exit("Connection Error: Could not reach Pwned Passwords API.")
+            print("Connection Error: Could not reach Pwned Passwords API.")
+            continue
         count = get_leak_count(api_response, suffix)
         if count > 0:
             print(f"Danger your Password has been PWNED {count} times")
             print("Please take action ASAP!")
         else:
             print("Your password is secure.....for now!")
-
 
 if __name__ == "__main__":
     main()

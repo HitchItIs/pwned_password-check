@@ -1,3 +1,4 @@
+import asyncio
 import getpass
 import sys
 
@@ -14,7 +15,7 @@ def get_password_as_bytearray():
         del password_text
 
 
-def main():
+async def main():
     while True:
         password_bytes = get_password_as_bytearray()
         try:
@@ -24,7 +25,7 @@ def main():
                 continue
             full_hash = get_hash(password_bytes)
             prefix, suffix = slicer(full_hash)
-            api_response = request_api_data(prefix)
+            api_response = await request_api_data(prefix)
             if not api_response:
                 print("Connection Error: Could not reach Pwned Passwords API.")
                 continue
@@ -41,4 +42,4 @@ def main():
             del password_bytes
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

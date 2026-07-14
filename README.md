@@ -28,6 +28,7 @@ This project is moving from a basic prototype to a resilient, production-grade c
 * Cryptographic SHA-1 Hashing of input strings.
 * Secure API communication via K-Anonymity.
 * basic console output for leak count.
+* Asynchronous file processing for `.txt` password lists via `python pwned_checker.py /path/to/passwords.txt`.
 * Security: Replace hardcoded password input with secure getpass or environment variables.
 * Error Handling: Currently lacks robust handling for API timeouts or connection errors.
 

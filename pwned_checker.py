@@ -3,6 +3,7 @@ import getpass
 import sys
 
 from api_client import get_leak_count, request_api_data
+from processor import process_password_file
 from security import get_hash, slicer
 
 
@@ -15,7 +16,7 @@ def get_password_as_bytearray():
         del password_text
 
 
-async def main():
+async def interactive_main():
     while True:
         password_bytes = get_password_as_bytearray()
         try:
@@ -40,6 +41,14 @@ async def main():
             for index in range(len(password_bytes)):
                 password_bytes[index] = 0x00
             del password_bytes
+
+
+async def main():
+    if len(sys.argv) > 1:
+        await process_password_file(sys.argv[1])
+        return
+    await interactive_main()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

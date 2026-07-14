@@ -4,8 +4,10 @@ from time import monotonic
 from typing import Dict, Tuple
 
 import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+
+
+RETRY_DELAYS = [0.5, 1, 2, 5, 20, 60]
+RETRY_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
 class _RateLimitState:
@@ -69,31 +71,40 @@ def rate_limited(max_concurrent, requests_per_second):
 
 def _request_api_data_sync(request_prefix):
     url = f"https://api.pwnedpasswords.com/range/{request_prefix}"
-    retry_strategy = Retry(
-        total=3,
-        connect=3,
-        read=3,
-        status=3,
-        backoff_factor=0.5,
-        status_forcelist=[500, 502, 503, 504],
-        allowed_methods=frozenset(["GET"]),
-    )
-    adapter = HTTPAdapter(max_retries=retry_strategy)
     try:
-        with requests.Session() as session:
-            session.mount("https://", adapter)
-            session.mount("http://", adapter)
-            res = session.get(url, timeout=5)
-            res.raise_for_status()
-            return res.text
+        res = requests.get(url, timeout=5)
+        return res.status_code, res.text
     except requests.exceptions.RequestException as err:
-        print(f"API request failed after retries: {err}")
-        return ""
+        print(f"API request failed: {err}")
+        return None, ""
 
 
 @rate_limited(max_concurrent=5, requests_per_second=8)
 async def request_api_data(request_prefix):
-    return await asyncio.to_thread(_request_api_data_sync, request_prefix)
+    retry_count = 0
+
+    while True:
+        status_code, response_text = await asyncio.to_thread(
+            _request_api_data_sync,
+            request_prefix,
+        )
+
+        if status_code == 200:
+            return response_text
+
+        if status_code in RETRY_STATUS_CODES:
+            delay = RETRY_DELAYS[min(retry_count, len(RETRY_DELAYS) - 1)]
+            print(
+                f"Warning: retry attempt {retry_count + 1}, "
+                f"HTTP {status_code}, waiting {delay} seconds.",
+            )
+            retry_count += 1
+            await asyncio.sleep(delay)
+            continue
+
+        if status_code is not None:
+            print(f"API request failed with HTTP {status_code}")
+        return ""
 
 
 def get_leak_count(hashes_data, target_suffix):

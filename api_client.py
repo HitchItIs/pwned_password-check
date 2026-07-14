@@ -1,5 +1,7 @@
 import asyncio
+import logging
 from functools import wraps
+from threading import Lock
 from time import monotonic
 from typing import Dict, Tuple
 
@@ -8,6 +10,11 @@ import requests
 
 RETRY_DELAYS = [0.5, 1, 2, 5, 20, 60]
 RETRY_STATUS_CODES = {429, 500, 502, 503, 504}
+logger = logging.getLogger(__name__)
+
+
+class ApiRequestError(Exception):
+    pass
 
 
 class _RateLimitState:
@@ -43,15 +50,17 @@ class _RateLimitState:
 
 
 _RATE_LIMIT_STATES: Dict[Tuple[int, float], _RateLimitState] = {}
+_RATE_LIMIT_STATE_LOCK = Lock()
 
 
 def _get_rate_limit_state(max_concurrent, requests_per_second):
     key = (max_concurrent, float(requests_per_second))
-    state = _RATE_LIMIT_STATES.get(key)
-    if state is None:
-        state = _RateLimitState(max_concurrent, float(requests_per_second))
-        _RATE_LIMIT_STATES[key] = state
-    return state
+    with _RATE_LIMIT_STATE_LOCK:
+        state = _RATE_LIMIT_STATES.get(key)
+        if state is None:
+            state = _RateLimitState(max_concurrent, float(requests_per_second))
+            _RATE_LIMIT_STATES[key] = state
+        return state
 
 
 def rate_limited(max_concurrent, requests_per_second):
@@ -75,8 +84,8 @@ def _request_api_data_sync(request_prefix):
         res = requests.get(url, timeout=5)
         return res.status_code, res.text
     except requests.exceptions.RequestException as err:
-        print(f"API request failed: {err}")
-        return None, ""
+        logger.warning("API request failed due to network error: %s", err.__class__.__name__)
+        raise ApiRequestError("API network request failed") from err
 
 
 @rate_limited(max_concurrent=5, requests_per_second=8)
@@ -84,17 +93,22 @@ async def request_api_data(request_prefix):
     retry_count = 0
 
     while True:
-        status_code, response_text = await asyncio.to_thread(
-            _request_api_data_sync,
-            request_prefix,
-        )
+        try:
+            status_code, response_text = await asyncio.to_thread(
+                _request_api_data_sync,
+                request_prefix,
+            )
+        except ApiRequestError:
+            raise
 
         if status_code == 200:
             return response_text
 
         if status_code in RETRY_STATUS_CODES:
+            if retry_count >= len(RETRY_DELAYS):
+                raise ApiRequestError("API retries exhausted")
             delay = RETRY_DELAYS[min(retry_count, len(RETRY_DELAYS) - 1)]
-            print(
+            logger.warning(
                 f"Warning: retry attempt {retry_count + 1}, "
                 f"HTTP {status_code}, waiting {delay} seconds.",
             )
@@ -102,9 +116,7 @@ async def request_api_data(request_prefix):
             await asyncio.sleep(delay)
             continue
 
-        if status_code is not None:
-            print(f"API request failed with HTTP {status_code}")
-        return ""
+        raise ApiRequestError(f"API request failed with HTTP {status_code}")
 
 
 def get_leak_count(hashes_data, target_suffix):

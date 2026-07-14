@@ -1,10 +1,13 @@
 import asyncio
 import getpass
+import logging
 import sys
-
-from api_client import get_leak_count, request_api_data
+ 
+from api_client import ApiRequestError, get_leak_count, request_api_data
 from processor import process_password_file
 from security import get_hash, slicer
+ 
+logger = logging.getLogger(__name__)
 
 
 def get_password_as_bytearray():
@@ -26,8 +29,9 @@ async def interactive_main():
                 continue
             full_hash = get_hash(password_bytes)
             prefix, suffix = slicer(full_hash)
-            api_response = await request_api_data(prefix)
-            if not api_response:
+            try:
+                api_response = await request_api_data(prefix)
+            except ApiRequestError:
                 print("Connection Error: Could not reach Pwned Passwords API.")
                 continue
             count = get_leak_count(api_response, suffix)
@@ -44,11 +48,18 @@ async def interactive_main():
 
 
 async def main():
-    if len(sys.argv) > 1:
-        await process_password_file(sys.argv[1])
-        return
-    await interactive_main()
+    try:
+        if len(sys.argv) > 1:
+            await process_password_file(sys.argv[1])
+            return
+        await interactive_main()
+    except OSError:
+        print("Error: Failed to read input file.")
+    except Exception:
+        logger.exception("Unexpected fatal error")
+        print("Error: Unexpected failure. Please try again.")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     asyncio.run(main())

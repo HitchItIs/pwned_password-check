@@ -30,7 +30,10 @@ This project is moving from a basic prototype to a resilient, production-grade c
 * basic console output for leak count.
 * Asynchronous file processing for `.txt` password lists via `python pwned_checker.py /path/to/passwords.txt`.
 * Security: Replace hardcoded password input with secure getpass or environment variables.
-* Error Handling: Currently lacks robust handling for API timeouts or connection errors.
+* Robust Error Handling: API network/time-out/retry failures are surfaced as explicit errors and processed without silent pipeline failures.
+* Stable Async Rate Limiting: Shared token-bucket + semaphore state is guarded for concurrent-safe access.
+* Resource Safety: File handles are managed via `async with` and in-flight tasks are cancelled/awaited on shutdown paths.
+* Logging Hygiene: No password plaintext or full hash values are written to console logs.
 
 ### Current Sprint & Refactoring (To-Do):
 * Byte-Level Architecture Migration: Completely eliminate high level Python string objects for password storage and shift to native bytearray slicing.

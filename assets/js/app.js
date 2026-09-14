@@ -1,6 +1,13 @@
-import { GlobeEngine } from '/assets/js/globe.js';
-import { TelemetryEngine } from '/assets/js/telemetry.js';
-import { UIController } from '/assets/js/ui.js';
+import { GlobeEngine } from './globe.js';
+import { TelemetryEngine } from './telemetry.js';
+import { UIController } from './ui.js';
+
+const API_BASE = new URL('../../api/', import.meta.url);
+const apiUrl = (file, params = {}) => {
+  const url = new URL(file, API_BASE);
+  Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
+  return url.toString();
+};
 
 const waitForSatelliteJs = async () => {
   const started = performance.now();
@@ -11,7 +18,7 @@ const waitForSatelliteJs = async () => {
 };
 
 const fetchGroup = async (group) => {
-  const response = await fetch(`/api/tle.php?group=${encodeURIComponent(group)}`, { cache: 'no-store' });
+  const response = await fetch(apiUrl('tle.php', { group }), { cache: 'no-store' });
   if (!response.ok) throw new Error(`${group} request failed`);
   return {
     rows: await response.json(),
@@ -21,7 +28,7 @@ const fetchGroup = async (group) => {
 
 const fetchCrew = async () => {
   try {
-    const response = await fetch('/api/iss_crew.php', { cache: 'no-store' });
+    const response = await fetch(apiUrl('iss_crew.php'), { cache: 'no-store' });
     if (!response.ok) return null;
     return response.json();
   } catch (_) {

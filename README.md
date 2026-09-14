@@ -51,6 +51,22 @@ Visit:
 http://127.0.0.1:8000/index.php
 ```
 
+## Private Hosting (Subdirectory Safe)
+
+This app now uses relative asset paths and module-based API URL resolution, so it can be hosted:
+
+- at domain root (example: `https://intranet.example.com/`)
+- or in a private subdirectory (example: `https://intranet.example.com/norad-terminal/`)
+
+### Deployment checklist
+
+- Keep the project directory structure unchanged.
+- Serve `index.php` through PHP 8.x.
+- Ensure outbound server access to:
+  - `https://celestrak.org`
+  - `http://api.open-notify.org`
+- Ensure `cache/` is writable by the web server user.
+
 ## API Endpoints
 
 - `GET /api/tle.php?group=stations`

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>NORAD Space Surveillance & Satellite Tracking Terminal</title>
-    <link rel="stylesheet" href="/assets/css/hud-theme.css">
+    <link rel="stylesheet" href="assets/css/hud-theme.css">
     <script defer src="https://unpkg.com/lucide@latest"></script>
     <script async src="https://unpkg.com/satellite.js@5.0.0/dist/satellite.min.js"></script>
 </head>
@@ -74,6 +74,6 @@
         </footer>
     </div>
 
-    <script type="module" src="/assets/js/app.js"></script>
+    <script type="module" src="assets/js/app.js"></script>
 </body>
 </html>

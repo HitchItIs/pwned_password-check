@@ -1,6 +1,13 @@
-import { GlobeEngine } from '/assets/js/globe.js';
-import { TelemetryEngine } from '/assets/js/telemetry.js';
-import { UIController } from '/assets/js/ui.js';
+import { GlobeEngine } from './globe.js';
+import { TelemetryEngine } from './telemetry.js';
+import { UIController } from './ui.js';
+
+const API_BASE = new URL('../../api/', import.meta.url);
+const apiUrl = (file, params = {}) => {
+  const url = new URL(file, API_BASE);
+  Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
+  return url.toString();
+};
 
 const waitForSatelliteJs = async () => {
   const started = performance.now();
@@ -11,7 +18,7 @@ const waitForSatelliteJs = async () => {
 };
 
 const fetchGroup = async (group) => {
-  const response = await fetch(`/api/tle.php?group=${encodeURIComponent(group)}`, { cache: 'no-store' });
+  const response = await fetch(apiUrl('tle.php', { group }), { cache: 'no-store' });
   if (!response.ok) throw new Error(`${group} request failed`);
   return {
     rows: await response.json(),
@@ -21,7 +28,7 @@ const fetchGroup = async (group) => {
 
 const fetchCrew = async () => {
   try {
-    const response = await fetch('/api/iss_crew.php', { cache: 'no-store' });
+    const response = await fetch(apiUrl('iss_crew.php'), { cache: 'no-store' });
     if (!response.ok) return null;
     return response.json();
   } catch (_) {
@@ -44,8 +51,9 @@ const app = async () => {
     globe.focusOn(selected.position);
     globe.setTrajectory(telemetry.buildTrajectory(selected));
   });
+  ui.bindRotateToggle(() => globe.toggleAutoRotate());
 
-  const [stations, starlink, debris, crew] = await Promise.all([
+  const [stations, starlink, debris, crew] = await Promise.allSettled([
     fetchGroup('stations'),
     fetchGroup('starlink'),
     fetchGroup('debris'),
@@ -53,14 +61,19 @@ const app = async () => {
   ]);
 
   telemetry.ingest({
-    stations: stations.rows,
-    starlink: starlink.rows,
-    debris: debris.rows
+    stations: stations.status === 'fulfilled' ? stations.value.rows : [],
+    starlink: starlink.status === 'fulfilled' ? starlink.value.rows : [],
+    debris: debris.status === 'fulfilled' ? debris.value.rows : []
   });
 
-  ui.setCacheStatus(`stations:${stations.cacheSource} | starlink:${starlink.cacheSource} | debris:${debris.cacheSource}`);
-  if (crew?.people) {
-    const aboardIss = crew.people.filter((p) => p.craft === 'ISS').length;
+  ui.setCacheStatus(
+    `stations:${stations.status === 'fulfilled' ? stations.value.cacheSource : 'error'} | `
+    + `starlink:${starlink.status === 'fulfilled' ? starlink.value.cacheSource : 'error'} | `
+    + `debris:${debris.status === 'fulfilled' ? debris.value.cacheSource : 'error'}`
+  );
+
+  if (crew.status === 'fulfilled' && crew.value?.people) {
+    const aboardIss = crew.value.people.filter((p) => p.craft === 'ISS').length;
     ui.setAlertText(`ISS crew onboard: ${aboardIss}`);
   }
 
@@ -87,6 +100,11 @@ const app = async () => {
 
   telemetry.applyFilters('all', '');
   ui.setTrackedCount(telemetry.getVisibleItems().length);
+  if (telemetry.getVisibleItems().length === 0) {
+    const status = document.getElementById('systemStatus');
+    if (status) status.textContent = 'SYSTEM: DEGRADED';
+    ui.setAlertText('No live telemetry sources reachable');
+  }
 
   const animate = () => {
     requestAnimationFrame(animate);

@@ -1,104 +1,82 @@
-# Password Leak Checker
+# NORAD Space Surveillance & Satellite Tracking Terminal
 
-Python CLI tool to check passwords against the Have I Been Pwned (HIBP) Pwned Passwords API with a privacy-preserving k-anonymity flow and asynchronous bulk processing.
+Professional, non-game, dark-theme satellite telemetry terminal built with:
 
-## Privacy & Security Blueprint
+- **Backend:** Native **PHP 8.x** API proxy + caching
+- **Frontend:** **HTML5 / CSS3 / Vanilla JS**
+- **3D/Orbital:** **Three.js** + **satellite.js**
+- **Live data:** **CelesTrak TLE** + **Open Notify ISS crew**
 
-This project prioritizes password confidentiality and controlled in-memory handling.
+## Features
 
-1. **K-Anonymity Principle**
-   - `security.get_hash(password)` computes the SHA-1 digest locally.
-   - `security.slicer(hash_wert)` splits the digest into a 5-character prefix and suffix.
-   - `api_client.request_api_data(request_prefix)` sends only the prefix to `https://api.pwnedpasswords.com/range/{prefix}`.
-   - `api_client.get_leak_count(hashes_data, target_suffix)` compares the suffix locally.
-   - Result: plaintext passwords and full hashes are never transmitted.
+- NORAD-style HUD layout with glassmorphism panels and CRT overlay
+- Real-time 3D Earth scene with satellite tracks and target highlighting
+- Group filters: stations, starlink, debris
+- Search by satellite name or NORAD ID
+- Telemetry inspector (lat/lon/altitude/velocity/period/inclination + raw TLE)
+- Backend cache layer with remote-failure fallback
 
-2. **Memory Hygiene via Mutable Buffers**
-   - Interactive flow (`pwned_checker.py`) converts input into `bytearray` and wipes it in a `finally` block.
-   - File-processing flow (`processor._check_password`) follows the same zeroization pattern.
-   - This reduces residual sensitive data in process memory after processing.
+## Project Structure
 
-## Usage
+- `/index.php`
+- `/api/tle.php`
+- `/api/iss_crew.php`
+- `/assets/css/hud-theme.css`
+- `/assets/js/app.js`
+- `/assets/js/globe.js`
+- `/assets/js/telemetry.js`
+- `/assets/js/ui.js`
+- `/cache/` (auto-created and used for cached JSON payloads)
 
-### 1) Install dependencies
+## Run Locally
+
+### 1) Requirements
+
+- PHP 8.x with cURL enabled
+- Internet access for CDN and telemetry sources
+
+### 2) Start the built-in PHP server
+
+From repository root:
 
 ```bash
-pip install -r requirements.txt
-pip install requests
+php -S 127.0.0.1:8000
 ```
 
-### 2) Interactive mode (single password)
+### 3) Open in browser
 
-```bash
-python pwned_checker.py
+Visit:
+
+```text
+http://127.0.0.1:8000/index.php
 ```
 
-- Enter a password at the prompt.
-- Type `exit` to close the session.
+## Private Hosting (Subdirectory Safe)
 
-### 3) File mode (bulk check, async)
+This app now uses relative asset paths and module-based API URL resolution, so it can be hosted:
 
-```bash
-python pwned_checker.py /path/to/passwords.txt
-```
+- at domain root (example: `https://intranet.example.com/`)
+- or in a private subdirectory (example: `https://intranet.example.com/norad-terminal/`)
 
-- Input file: one password per line (UTF-8 text file).
-- Empty lines are skipped.
+### Deployment checklist
 
-## Architecture & Technical Design
+- Keep the project directory structure unchanged.
+- Serve `index.php` through PHP 8.x.
+- Ensure outbound server access to:
+  - `https://celestrak.org`
+  - `http://api.open-notify.org`
+- Ensure `cache/` is writable by the web server user.
 
-### Runtime Components
+## API Endpoints
 
-- **`pwned_checker.py`**: CLI entry point, mode switch (interactive vs file), async event-loop bootstrap.
-- **`processor.py`**: asynchronous file ingestion + in-flight task orchestration for batch checks.
-- **`api_client.py`**: HTTP access, retry policy, rate-limiting decorator, suffix leak count lookup.
-- **`security.py`**: SHA-1 hashing and prefix/suffix slicing for the k-anonymity protocol.
+- `GET /api/tle.php?group=stations`
+- `GET /api/tle.php?group=starlink`
+- `GET /api/tle.php?group=debris`
+- `GET /api/iss_crew.php`
 
-### Data Flow (Interactive + Batch)
+`api/tle.php` caches each group response for 6 hours in `cache/tle_{group}.json` and falls back to stale cache on remote failure.
 
-```mermaid
-flowchart TD
-    A[Password Input] --> B[get_hash in security.py]
-    B --> C[slicer in security.py]
-    C --> D[request_api_data in api_client.py]
-    D --> E[get_leak_count in api_client.py]
-    E --> F[CLI result output]
+## Notes
 
-    A2[Passwords file] --> G[read_passwords in processor.py]
-    G --> H[_check_password tasks]
-    H --> B
-```
-
-### Async-Pipeline
-
-- `processor.read_passwords(file_path)` uses **`aiofiles`** with `async for` to stream input line-by-line instead of loading the entire file into memory.
-- `processor.process_password_file(...)` creates async tasks (`asyncio.create_task`) and keeps a bounded in-flight set (`max_in_flight`, default `20`).
-- Completion handling uses `asyncio.wait(..., return_when=asyncio.FIRST_COMPLETED)` to continuously drain finished checks and keep throughput stable.
-
-### Throttling-Engine
-
-`api_client.rate_limited(max_concurrent, requests_per_second)` wraps async API calls with two coordinated controls:
-
-1. **Concurrency Guard**: `asyncio.Semaphore(max_concurrent)` limits simultaneous request execution.
-2. **Token Bucket**: `_RateLimitState.acquire_token()` refills tokens over time (`monotonic()` based) and enforces average request rate (`requests_per_second`).
-
-`request_api_data` is decorated with:
-
-```python
-@rate_limited(max_concurrent=5, requests_per_second=8)
-```
-
-This means requests must pass both the token budget and semaphore gate before dispatch.
-
-### Resilience Layer (Exponential Backoff)
-
-- Retry-enabled statuses: `{429, 500, 502, 503, 504}` (`RETRY_STATUS_CODES` in `api_client.py`).
-- Retry delay schedule (`RETRY_DELAYS`): **`[0.5, 1, 2, 5, 20, 60]`** seconds.
-- `api_client.request_api_data` applies increasing waits and then continues retries with the maximum delay (`60s`) for subsequent attempts.
-- Non-retryable responses return an empty payload to the caller, which is surfaced as an error status in CLI output.
-
-## Operational Notes
-
-- The HTTP call runs via `requests.get(..., timeout=5)` inside `asyncio.to_thread(...)` so network I/O does not block the event loop.
-- Batch mode progress is logged every `progress_interval` items (default: `100`).
-- Output states in batch mode: `SAFE`, `PWNED`, `ERROR`.
+- Ensure the `cache/` directory is writable by PHP.
+- If external APIs are unavailable and no cache exists yet, API endpoints return `502`.

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>NORAD Space Surveillance & Satellite Tracking Terminal</title>
-    <link rel="stylesheet" href="assets/css/hud-theme.css">
+    <link rel="stylesheet" href="/assets/css/hud-theme.css">
     <script defer src="https://unpkg.com/lucide@latest"></script>
     <script async src="https://unpkg.com/satellite.js@5.0.0/dist/satellite.min.js"></script>
 </head>
@@ -19,7 +19,6 @@
             <div class="clock-wrap">
                 <div><span>UTC</span><strong id="utcClock">--:--:--</strong></div>
                 <div><span>LOCAL</span><strong id="localClock">--:--:--</strong></div>
-                <button class="hud-btn" id="toggleRotate">Auto Rotate</button>
                 <button class="hud-btn" id="toggleCrt">CRT Overlay</button>
             </div>
         </header>
@@ -74,6 +73,6 @@
         </footer>
     </div>
 
-    <script type="module" src="assets/js/app.js"></script>
+    <script type="module" src="/assets/js/app.js"></script>
 </body>
 </html>

@@ -3,7 +3,6 @@ export class UIController {
     this.els = {
       utcClock: document.getElementById('utcClock'),
       localClock: document.getElementById('localClock'),
-      toggleRotate: document.getElementById('toggleRotate'),
       toggleCrt: document.getElementById('toggleCrt'),
       crtOverlay: document.getElementById('crtOverlay'),
       groupFilters: document.getElementById('groupFilters'),
@@ -51,14 +50,6 @@ export class UIController {
 
   bindCrtToggle() {
     this.els.toggleCrt.addEventListener('click', () => this.els.crtOverlay.classList.toggle('disabled'));
-  }
-
-  bindRotateToggle(onToggle) {
-    this.els.toggleRotate.addEventListener('click', () => {
-      const enabled = onToggle();
-      this.els.toggleRotate.classList.toggle('active', enabled);
-      this.els.toggleRotate.textContent = enabled ? 'Auto Rotate: ON' : 'Auto Rotate: OFF';
-    });
   }
 
   bindPredictor(onPredict) {

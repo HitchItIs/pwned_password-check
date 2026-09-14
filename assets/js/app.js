@@ -44,8 +44,9 @@ const app = async () => {
     globe.focusOn(selected.position);
     globe.setTrajectory(telemetry.buildTrajectory(selected));
   });
+  ui.bindRotateToggle(() => globe.toggleAutoRotate());
 
-  const [stations, starlink, debris, crew] = await Promise.all([
+  const [stations, starlink, debris, crew] = await Promise.allSettled([
     fetchGroup('stations'),
     fetchGroup('starlink'),
     fetchGroup('debris'),
@@ -53,14 +54,19 @@ const app = async () => {
   ]);
 
   telemetry.ingest({
-    stations: stations.rows,
-    starlink: starlink.rows,
-    debris: debris.rows
+    stations: stations.status === 'fulfilled' ? stations.value.rows : [],
+    starlink: starlink.status === 'fulfilled' ? starlink.value.rows : [],
+    debris: debris.status === 'fulfilled' ? debris.value.rows : []
   });
 
-  ui.setCacheStatus(`stations:${stations.cacheSource} | starlink:${starlink.cacheSource} | debris:${debris.cacheSource}`);
-  if (crew?.people) {
-    const aboardIss = crew.people.filter((p) => p.craft === 'ISS').length;
+  ui.setCacheStatus(
+    `stations:${stations.status === 'fulfilled' ? stations.value.cacheSource : 'error'} | `
+    + `starlink:${starlink.status === 'fulfilled' ? starlink.value.cacheSource : 'error'} | `
+    + `debris:${debris.status === 'fulfilled' ? debris.value.cacheSource : 'error'}`
+  );
+
+  if (crew.status === 'fulfilled' && crew.value?.people) {
+    const aboardIss = crew.value.people.filter((p) => p.craft === 'ISS').length;
     ui.setAlertText(`ISS crew onboard: ${aboardIss}`);
   }
 
@@ -87,6 +93,11 @@ const app = async () => {
 
   telemetry.applyFilters('all', '');
   ui.setTrackedCount(telemetry.getVisibleItems().length);
+  if (telemetry.getVisibleItems().length === 0) {
+    const status = document.getElementById('systemStatus');
+    if (status) status.textContent = 'SYSTEM: DEGRADED';
+    ui.setAlertText('No live telemetry sources reachable');
+  }
 
   const animate = () => {
     requestAnimationFrame(animate);

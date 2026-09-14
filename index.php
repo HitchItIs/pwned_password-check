@@ -19,6 +19,7 @@
             <div class="clock-wrap">
                 <div><span>UTC</span><strong id="utcClock">--:--:--</strong></div>
                 <div><span>LOCAL</span><strong id="localClock">--:--:--</strong></div>
+                <button class="hud-btn" id="toggleRotate">Auto Rotate</button>
                 <button class="hud-btn" id="toggleCrt">CRT Overlay</button>
             </div>
         </header>

@@ -17,6 +17,8 @@ export class GlobeEngine {
     this.controls.minDistance = 130;
     this.controls.maxDistance = 520;
     this.controls.autoRotate = false;
+    this.controls.autoRotateSpeed = 0.5;
+    this.clock = new THREE.Clock();
 
     this.points = null;
     this.raycaster = new THREE.Raycaster();
@@ -39,6 +41,26 @@ export class GlobeEngine {
   }
 
   _initScene() {
+    this.scene.fog = new THREE.FogExp2(0x02050c, 0.0018);
+
+    const starsGeometry = new THREE.BufferGeometry();
+    const stars = [];
+    for (let i = 0; i < 2400; i += 1) {
+      const r = 820 + Math.random() * 880;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos((Math.random() * 2) - 1);
+      stars.push(
+        r * Math.sin(phi) * Math.cos(theta),
+        r * Math.cos(phi),
+        r * Math.sin(phi) * Math.sin(theta)
+      );
+    }
+    starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(stars, 3));
+    const starsMesh = new THREE.Points(
+      starsGeometry,
+      new THREE.PointsMaterial({ color: 0x7ab6ff, size: 1.25, transparent: true, opacity: 0.72 })
+    );
+
     const earth = new THREE.Mesh(
       new THREE.SphereGeometry(this.earthRadius, 64, 64),
       new THREE.MeshPhongMaterial({ color: 0x0d2448, emissive: 0x02101f, shininess: 20, specular: 0x286ca4 })
@@ -52,7 +74,7 @@ export class GlobeEngine {
     const sun = new THREE.DirectionalLight(0xffffff, 1.1);
     sun.position.set(180, 100, 90);
 
-    this.scene.add(earth, atmosphere, ambient, sun, this.selectedRing, this.trajectoryLine);
+    this.scene.add(starsMesh, earth, atmosphere, ambient, sun, this.selectedRing, this.trajectoryLine);
   }
 
   _bind() {
@@ -130,6 +152,11 @@ export class GlobeEngine {
     this.controls.target.lerp(vector3, 0.25);
   }
 
+  toggleAutoRotate() {
+    this.controls.autoRotate = !this.controls.autoRotate;
+    return this.controls.autoRotate;
+  }
+
   resize() {
     const { clientWidth, clientHeight } = this.canvas;
     if (!clientWidth || !clientHeight) return;
@@ -139,6 +166,12 @@ export class GlobeEngine {
   }
 
   render() {
+    const elapsed = this.clock.getElapsedTime();
+    if (this.selectedRing.visible) {
+      const pulse = 1 + Math.sin(elapsed * 4) * 0.18;
+      this.selectedRing.scale.setScalar(pulse);
+      this.selectedRing.material.opacity = 0.78 + (Math.sin(elapsed * 5) * 0.12);
+    }
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
   }

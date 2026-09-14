@@ -10,6 +10,15 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; font-family: Inter, Segoe UI, sans-serif; color: var(--text); background: radial-gradient(circle at 20% 20%, #0b1630 0, var(--bg) 45%, #02050c 100%); }
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 88% 10%, rgba(0, 243, 255, 0.08), transparent 36%),
+    radial-gradient(circle at 10% 80%, rgba(0, 255, 102, 0.06), transparent 38%);
+}
 
 .panel {
   background: var(--panel);
@@ -35,6 +44,14 @@ html, body { margin: 0; height: 100%; font-family: Inter, Segoe UI, sans-serif; 
 .top-bar { grid-area: top; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; }
 .left-sidebar { grid-area: left; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .globe-panel { grid-area: main; overflow: hidden; position: relative; }
+.globe-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 1px solid rgba(0, 243, 255, 0.2);
+  box-shadow: inset 0 0 45px rgba(0, 243, 255, 0.08);
+}
 .right-sidebar { grid-area: right; padding: 12px; overflow: auto; }
 .bottom-bar { grid-area: bottom; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; font-size: 0.9rem; }
 
@@ -57,7 +74,7 @@ h2, h3 { margin: 0; font-size: 0.95rem; color: var(--cyan); display: flex; align
   cursor: pointer;
   transition: 160ms ease;
 }
-.hud-btn:hover, .hud-btn.active { box-shadow: 0 0 12px rgba(0, 243, 255, 0.32); border-color: var(--cyan); }
+.hud-btn:hover, .hud-btn.active { box-shadow: 0 0 12px rgba(0, 243, 255, 0.32); border-color: var(--cyan); transform: translateY(-1px); }
 
 .hud-input, textarea {
   width: 100%;
@@ -83,6 +100,7 @@ textarea { min-height: 64px; resize: vertical; font-family: ui-monospace, SFMono
   inset: 0;
   pointer-events: none;
   opacity: 0.16;
+  mix-blend-mode: screen;
   background: repeating-linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.03),

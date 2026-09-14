@@ -85,7 +85,9 @@ export class GlobeEngine {
   }
 
   updateSatellites(items, selectedIndex = -1) {
-    if (!this.points) this.setSatellites(items.length);
+    if (!this.points || this.points.geometry.attributes.position.count !== items.length) {
+      this.setSatellites(items.length);
+    }
     const pos = this.points.geometry.attributes.position.array;
     const col = this.points.geometry.attributes.color.array;
 

@@ -1,0 +1,208 @@
+From c777c996b0e7a4838cf44e1216a881b2efd36010 Mon Sep 17 00:00:00 2001
+From: HitchItIs <oelkercan@gmail.com>
+Date: Fri, 17 Jul 2026 14:29:04 +0200
+Subject: [PATCH] feat: implement secure memory handling and streaming file
+ processing
+
+---
+ README.md        | 13 ++++-----
+ pwned_checker.py | 70 ++++++++++++++++++++++++++++++++++--------------
+ security.py      | 46 +++++++++++++++++++++++++++----
+ test_security.py | 19 +++++++++++++
+ 4 files changed, 117 insertions(+), 31 deletions(-)
+ create mode 100644 test_security.py
+
+diff --git a/README.md b/README.md
+index 8ecc6cc..452c73e 100644
+--- a/README.md
++++ b/README.md
+@@ -30,12 +30,13 @@ This project is moving from a basic prototype to a resilient, production-grade c
+ * Security: Replace hardcoded password input with secure getpass or environment variables.
+ * Error Handling: Currently lacks robust handling for API timeouts or connection errors.
+ 
+-### Current Sprint & Refactoring (To-Do):
+-* Byte-Level Architecture Migration: Completely eliminate high level Python string objects for password storage and shift to native bytearray slicing.
+-* Resilient Error Handling (Interactive Mode): Replace hard-crashes with a continuous input loop that surfaces clear diagnostic errors (Timeouts, HTTP 503 Service unavailable) without destroying the session.
+-* Asynchronous File Processing: 
+-  * Add support for checking multiple passwords from a .txt file.
+-  * Implement an internal Circuit Breaker logic: if the application hits a sequence of persistent connection errors or a heavy-load response, it trips a circuit break to gracefully abort and prevent corrupted reports.
++### Current Sprint & Refactoring (Completed):
++* Byte-Level Architecture Migration: Implemented secure `bytearray` handling, `msvcrt` console input, and binary streaming for file processing.
++* Resilient Error Handling (Interactive Mode): Improved interactive input loop.
++* Asynchronous File Processing: Added support for checking multiple passwords from a .txt file using binary streaming.
++
++### To-Do:
++* Implement an internal Circuit Breaker logic: if the application hits a sequence of persistent connection errors or a heavy-load response, it trips a circuit break to gracefully abort and prevent corrupted reports.
+ * Modular Rate-Limiting Engine:
+   * Design a tunable, async throttling mechanism (Semaphore combined with a micro-delay token bucket).
+   * Calibrate the delay through trial and error to process bulk lists at maximum speed just below the HIBP API's 429 (Too Many Requests) blocking threshold.
+diff --git a/pwned_checker.py b/pwned_checker.py
+index 6de4c02..3b06649 100644
+--- a/pwned_checker.py
++++ b/pwned_checker.py
+@@ -1,29 +1,59 @@
+-import getpass
+ import sys
+ 
+ from api_client import get_leak_count, request_api_data
+-from security import get_hash, slicer
++from security import get_hash, slicer, secure_getpass, zero_buffer
+ 
++def check_password(password_bytes):
++    full_hash = get_hash(password_bytes)
++    prefix, suffix = slicer(full_hash)
++    api_response = request_api_data(prefix)
++    if not api_response:
++        print("Connection Error: Could not reach Pwned Passwords API.")
++        return
++    count = get_leak_count(api_response, suffix)
++    if count > 0:
++        print(f"Password '{password_bytes.decode('utf-8', errors='ignore')}' has been PWNED {count} times")
++        print("Please take action ASAP!")
++    else:
++        print(f"Password '{password_bytes.decode('utf-8', errors='ignore')}' is secure.....for now!")
++
++def check_file(file_path):
++    password_bytes = bytearray()
++    try:
++        with open(file_path, 'rb') as f:
++            while True:
++                chunk = f.read(4096)
++                if not chunk:
++                    if password_bytes:
++                        check_password(password_bytes)
++                        zero_buffer(password_bytes)
++                    break
++                
++                for byte in chunk:
++                    if byte == 10: # \n
++                        if password_bytes:
++                            check_password(password_bytes)
++                            zero_buffer(password_bytes)
++                            password_bytes = bytearray()
++                    elif byte != 13: # \r
++                        password_bytes.append(byte)
++    except FileNotFoundError:
++        print(f"File not found: {file_path}")
+ 
+ def main():
+-    while True:
+-        test_password = getpass.getpass("Password to check (or type 'exit'): ")
+-        if test_password.lower() == "exit":
+-            break
+-        if not test_password:
+-            continue
+-        full_hash = get_hash(test_password)
+-        prefix, suffix = slicer(full_hash)
+-        api_response = request_api_data(prefix)
+-        if not api_response:
+-            print("Connection Error: Could not reach Pwned Passwords API.")
+-            continue
+-        count = get_leak_count(api_response, suffix)
+-        if count > 0:
+-            print(f"Danger your Password has been PWNED {count} times")
+-            print("Please take action ASAP!")
+-        else:
+-            print("Your password is secure.....for now!")
++    if len(sys.argv) > 1:
++        check_file(sys.argv[1])
++    else:
++        while True:
++            password_bytes = secure_getpass()
++            
++            if password_bytes == bytearray(b'exit'):
++                break
++            if not password_bytes:
++                continue
++
++            check_password(password_bytes)
++            zero_buffer(password_bytes)
+ 
+ if __name__ == "__main__":
+     main()
+diff --git a/security.py b/security.py
+index 81c7771..7294c1a 100644
+--- a/security.py
++++ b/security.py
+@@ -1,12 +1,48 @@
+ import hashlib
++import msvcrt
++import sys
+ 
++def zero_buffer(buf: bytearray):
++    for i in range(len(buf)):
++        buf[i] = 0
+ 
+-def get_hash(password):
+-    pw_encoded = password.encode("utf-8")
+-    hash_objekt = hashlib.sha1(pw_encoded)
+-    hex_hash = hash_objekt
+-    return hex_hash.hexdigest().upper()
++def secure_getpass(prompt="Password to check (or type 'exit'): "):
++    sys.stderr.write(prompt)
++    sys.stderr.flush()
+ 
++    password_bytes = bytearray()
++    try:
++        while True:
++            ch = msvcrt.getch()
++
++            if ch in (b'\r', b'\n'):
++                sys.stderr.write('\n')
++                sys.stderr.flush()
++                break
++
++            elif ch in (b'\x08', b'\x7f'):
++                if len(password_bytes) > 0:
++                    password_bytes.pop()
++
++            elif ch == b'\x03':
++                raise KeyboardInterrupt()
++
++            elif ch in (b'\x00', b'\xe0'):
++                msvcrt.getch()
++                continue
++
++            else:
++                password_bytes.extend(ch)
++
++    except (KeyboardInterrupt, Exception) as e:
++        zero_buffer(password_bytes)
++        raise e
++
++    return password_bytes
++
++def get_hash(password_bytes: bytearray):
++    hash_objekt = hashlib.sha1(password_bytes)
++    return hash_objekt.hexdigest().upper()
+ 
+ def slicer(hash_wert):
+     prefix = hash_wert[:5]
+diff --git a/test_security.py b/test_security.py
+new file mode 100644
+index 0000000..2f62421
+--- /dev/null
++++ b/test_security.py
+@@ -0,0 +1,19 @@
++import unittest
++from security import zero_buffer, get_hash
++
++class TestSecurity(unittest.TestCase):
++    def test_zero_buffer(self):
++        buf = bytearray(b"sensitive_password")
++        zero_buffer(buf)
++        self.assertEqual(buf, bytearray(len(b"sensitive_password")))
++        self.assertTrue(all(b == 0 for b in buf))
++
++    def test_get_hash(self):
++        password = bytearray(b"test_password")
++        # SHA1 of "test_password"
++        # Hex: 9fb7fe1217aed442b04c0f5e43b5d5a7d3287097
++        expected_hash = "9FB7FE1217AED442B04C0F5E43B5D5A7D3287097"
++        self.assertEqual(get_hash(password), expected_hash)
++
++if __name__ == '__main__':
++    unittest.main()
+-- 
+2.54.0.windows.1
+
